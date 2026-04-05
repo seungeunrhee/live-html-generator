@@ -268,12 +268,19 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
       <div class="pv" id="pv-bottom">⑦하단</div>
     </div>
 
-    <div class="big-drop" id="big-drop"
-      ondragover="bigDrag(event)" ondragleave="bigLeave()" ondrop="bigDrop(event)">
-      <input type="file" accept="image/*" multiple id="file-input" onchange="fileInput(event)">
-      <div class="drop-icon" id="drop-icon">📁</div>
-      <div class="drop-title" id="drop-title">제품 상세 이미지 드롭</div>
-      <div class="drop-sub" id="drop-sub">폴더째로 드롭하거나 여러 장 선택 · 파일명순 자동 정렬</div>
+    <div style="position:relative;">
+      <div class="big-drop" id="big-drop"
+        ondragover="bigDrag(event)" ondragleave="bigLeave()" ondrop="bigDrop(event)">
+        <input type="file" accept="image/*" multiple id="file-input" onchange="fileInput(event)">
+        <div class="drop-icon" id="drop-icon">📁</div>
+        <div class="drop-title" id="drop-title">제품 상세 이미지 드롭</div>
+        <div class="drop-sub" id="drop-sub">폴더째로 드롭하거나 여러 장 선택 · 파일명순 자동 정렬</div>
+      </div>
+      <button id="reset-btn" onclick="resetDrop()" style="display:none;position:absolute;top:8px;right:8px;
+        padding:5px 12px;font-size:11px;font-family:var(--mono);background:rgba(255,255,255,0.9);
+        border:1px solid var(--border2);border-radius:var(--rs);cursor:pointer;color:var(--text2);z-index:10;">
+        ↺ 다시하기
+      </button>
     </div>
 
     <div class="progress-wrap" id="progress-wrap">
@@ -486,12 +493,22 @@ function setDropState(state,title,sub){
   const icon=document.getElementById('drop-icon');
   const t=document.getElementById('drop-title');
   const s=document.getElementById('drop-sub');
+  const rb=document.getElementById('reset-btn');
   bd.classList.remove('drag-over','loading','done');
-  if(state==='loading'){bd.classList.add('loading');icon.textContent='⏳';}
-  else if(state==='done'){bd.classList.add('done');icon.textContent='✅';}
-  else{icon.textContent='📁';}
+  if(state==='loading'){bd.classList.add('loading');icon.textContent='⏳';rb.style.display='none';}
+  else if(state==='done'){bd.classList.add('done');icon.textContent='✅';rb.style.display='block';}
+  else{icon.textContent='📁';rb.style.display='none';}
   t.textContent=title;
   s.textContent=sub;
+}
+
+function resetDrop(){
+  setDropState('default','제품 상세 이미지 드롭','폴더째로 드롭하거나 여러 장 선택 · 파일명순 자동 정렬');
+  document.getElementById('file-input').value='';
+  document.getElementById('product-name').value='';
+  document.getElementById('inline-output').style.display='none';
+  setDetailPv(0);
+  updateStrip();
 }
 
 function showProgress(pct){
