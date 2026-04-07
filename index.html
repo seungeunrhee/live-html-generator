@@ -346,6 +346,21 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
     <div class="saved-title">저장된 HTML</div>
     <span class="saved-count" id="saved-count">0개</span>
   </div>
+  <div style="position:relative;margin-bottom:.25rem;">
+    <input type="text" id="saved-search" placeholder="상품명으로 검색..." 
+      oninput="filterSaved(this.value)"
+      style="width:100%;padding:10px 14px 10px 36px;font-size:14px;font-family:var(--sans);
+        background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+        color:var(--text);outline:none;"
+      onfocus="this.style.borderColor='var(--accent)'" 
+      onblur="this.style.borderColor='var(--border)'">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);
+      font-size:15px;color:var(--text3);pointer-events:none;">⌕</span>
+    <button id="search-clear" onclick="clearSearch()" 
+      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);
+        background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);padding:2px 6px;">×</button>
+  </div>
+  <div id="search-result-info" style="font-size:12px;color:var(--text3);font-family:var(--mono);min-height:18px;"></div>
   <div class="saved-grid" id="saved-grid"></div>
 </div>
 </div>
@@ -667,15 +682,47 @@ function copyMain(){
 }
 
 // ── SAVED LIST ──
+function filterSaved(q){
+  const clearBtn=document.getElementById('search-clear');
+  const info=document.getElementById('search-result-info');
+  clearBtn.style.display=q?'block':'none';
+  const filtered=q.trim()?SAVED.filter(s=>s.name.toLowerCase().includes(q.trim().toLowerCase())):SAVED;
+  if(q.trim()){
+    info.textContent=`"${q.trim()}" 검색 결과 ${filtered.length}개`;
+  } else {
+    info.textContent='';
+  }
+  renderSavedGrid(filtered);
+}
+
+function clearSearch(){
+  document.getElementById('saved-search').value='';
+  document.getElementById('search-clear').style.display='none';
+  document.getElementById('search-result-info').textContent='';
+  renderSavedGrid(SAVED);
+}
+
 function renderSaved(){
-  const grid=document.getElementById('saved-grid');
-  document.getElementById('saved-count').textContent=`${SAVED.length}개`;
+  const cnt=document.getElementById('saved-count');
+  if(cnt) cnt.textContent=`${SAVED.length}개`;
   updateSavedBadge();
+  // 검색어 유지하면서 렌더링
+  const q=document.getElementById('saved-search');
+  if(q&&q.value.trim()) filterSaved(q.value);
+  else renderSavedGrid(SAVED);
+}
+
+function renderSavedGrid(list){
+  const grid=document.getElementById('saved-grid');
   if(!SAVED.length){
     grid.innerHTML=`<div class="no-saved"><div class="no-saved-icon">📂</div>아직 저장된 HTML이 없어요<br><span style="font-size:11px;color:var(--text3);margin-top:4px;display:block;">생성기 탭에서 이미지를 업로드하면 여기에 자동으로 쌓여요</span></div>`;
     return;
   }
-  grid.innerHTML=SAVED.map(item=>`
+  if(!list.length){
+    grid.innerHTML=`<div class="no-saved"><div class="no-saved-icon">🔍</div>검색 결과가 없어요</div>`;
+    return;
+  }
+  grid.innerHTML=list.map(item=>`
     <div class="saved-item fade-in" id="si-${item.id}">
       <div class="si-hd">
         <div class="si-name">${item.name}</div>
