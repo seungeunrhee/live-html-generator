@@ -205,6 +205,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('generator',this)">HTML 생성기</button>
     <button class="nav-tab" onclick="showPage('saved',this)">저장된 HTML <span id="saved-badge"></span></button>
+    <button class="nav-tab" onclick="showPage('banner',this)">라이브 배너 교체</button>
   </div>
   <div class="status-pill">운영 중</div>
 </nav>
@@ -365,7 +366,44 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 </div>
 </div>
 
-<!-- PREVIEW MODAL -->
+<!-- ══ BANNER ══ -->
+<div class="page" id="page-banner">
+<div class="saved-wrap">
+  <div class="saved-hd">
+    <div class="saved-title">라이브 배너 교체</div>
+    <span style="font-size:12px;color:var(--text3);">새 라이브 배너를 드롭하면 저장된 HTML에 자동으로 합쳐요</span>
+  </div>
+
+  <!-- 새 배너 드롭 -->
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-title" style="margin-bottom:.75rem;">① 새 라이브 배너 업로드</div>
+    <div class="dz" id="dz-new-banner" style="padding:1.5rem;justify-content:center;flex-direction:column;text-align:center;gap:6px;"
+      ondragover="onDrag(event,this)" ondragleave="onLeave(this)" ondrop="onNewBannerDrop(event)">
+      <input type="file" accept="image/*" onchange="onNewBannerFile(event)">
+      <span id="nb-icon" style="font-size:2rem;">🖼</span>
+      <span class="dz-text" id="nb-text">새 라이브 배너 드롭 또는 클릭</span>
+    </div>
+  </div>
+
+  <!-- 상품 선택 -->
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-title" style="margin-bottom:.75rem;">② 적용할 상품 선택 <span style="font-size:11px;color:var(--text3);font-weight:400;">여러 개 선택 가능</span></div>
+    <div id="banner-product-list" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;"></div>
+    <div id="banner-no-saved" style="display:none;font-size:12px;color:var(--text3);padding:1rem 0;">저장된 HTML이 없어요. 먼저 HTML 생성기에서 상품을 등록해주세요.</div>
+  </div>
+
+  <!-- 생성 버튼 -->
+  <button onclick="applyNewBanner()" style="width:100%;padding:13px;font-size:15px;font-weight:700;
+    font-family:var(--sans);background:var(--text);color:#fff;border:none;border-radius:var(--r);
+    cursor:pointer;transition:all .2s;"
+    onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--text)'">
+    선택한 상품에 배너 적용하기 →
+  </button>
+
+  <!-- 결과 -->
+  <div id="banner-results" style="display:flex;flex-direction:column;gap:10px;"></div>
+</div>
+</div>
 <div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-hd">
@@ -404,6 +442,118 @@ function showPage(name,btn){
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
   if(name==='saved') renderSaved();
+  if(name==='banner') renderBannerPage();
+}
+
+// ── BANNER REPLACE ──
+let newBannerB64 = null;
+let newBannerUrl = null;
+
+function onNewBannerDrop(e){
+  e.preventDefault();
+  document.getElementById('dz-new-banner').classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/')) readNewBanner(f);
+}
+function onNewBannerFile(e){ const f=e.target.files[0]; if(f) readNewBanner(f); }
+
+async function readNewBanner(file){
+  const icon=document.getElementById('nb-icon');
+  const text=document.getElementById('nb-text');
+  const dz=document.getElementById('dz-new-banner');
+  text.textContent='업로드 중...';
+  try{
+    const url=await uploadToImgbb(file);
+    newBannerUrl=url;
+    dz.classList.add('has-file');
+    icon.textContent='✅';
+    text.textContent=file.name+' — 업로드 완료';
+    text.classList.add('ok');
+  }catch(e){
+    // imgbb 실패 시 Base64로 fallback
+    const r=new FileReader();
+    r.onload=ev=>{
+      newBannerB64=ev.target.result;
+      newBannerUrl=null;
+      dz.classList.add('has-file');
+      icon.textContent='✅';
+      text.textContent=file.name;
+      text.classList.add('ok');
+    };
+    r.readAsDataURL(file);
+  }
+}
+
+function renderBannerPage(){
+  const list=document.getElementById('banner-product-list');
+  const noSaved=document.getElementById('banner-no-saved');
+  if(!SAVED.length){
+    list.style.display='none';
+    noSaved.style.display='block';
+    return;
+  }
+  list.style.display='flex';
+  noSaved.style.display='none';
+  list.innerHTML=SAVED.map(item=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+      border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;
+      transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${item.id}" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+      <div>
+        <div style="font-size:13px;font-weight:500;">${item.name}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${item.time} · 상세 ${item.detailCount}장</div>
+      </div>
+    </label>`).join('');
+}
+
+function applyNewBanner(){
+  const bannerSrc = newBannerUrl || newBannerB64;
+  if(!bannerSrc){ alert('새 라이브 배너를 먼저 업로드해주세요.'); return; }
+  const checked=[...document.querySelectorAll('#banner-product-list input:checked')].map(i=>i.value);
+  if(!checked.length){ alert('적용할 상품을 선택해주세요.'); return; }
+
+  const results=document.getElementById('banner-results');
+  results.innerHTML='';
+
+  checked.forEach(id=>{
+    const item=SAVED.find(s=>s.id===id);
+    if(!item) return;
+    const bannerTag=`<img src="${bannerSrc}" alt="상단 라이브 배너" border="0">`;
+    const combinedHtml=bannerTag+'\n'+item.html;
+
+    const div=document.createElement('div');
+    div.className='card fade-in';
+    div.style.cssText='display:flex;flex-direction:column;gap:10px;';
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:500;">${item.name}</span>
+        <span style="font-size:11px;font-family:var(--mono);color:var(--green);">✓ 배너 적용됨</span>
+      </div>
+      <div class="code-wrap">
+        <div class="code-topbar">
+          <div class="code-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+          <span class="code-lang">라이브 배너 + ${item.name}</span>
+        </div>
+        <div style="padding:.75rem 1.25rem;font-family:var(--mono);font-size:11px;color:#c8c4bb;max-height:120px;overflow-y:auto;word-break:break-all;white-space:pre-wrap;">${combinedHtml.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>
+      <button onclick="copyBannerResult(this,'${encodeURIComponent(combinedHtml)}')"
+        style="width:100%;padding:9px;font-size:13px;font-family:var(--sans);font-weight:500;
+        background:var(--text);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;">
+        복사하기
+      </button>`;
+    results.appendChild(div);
+  });
+
+  results.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function copyBannerResult(btn, encoded){
+  const html=decodeURIComponent(encoded);
+  navigator.clipboard.writeText(html).then(()=>{
+    btn.textContent='복사됨! ✓';
+    btn.style.background='var(--green)';
+    setTimeout(()=>{ btn.textContent='복사하기'; btn.style.background='var(--text)'; },2000);
+  });
 }
 
 // ── FIXED ──
